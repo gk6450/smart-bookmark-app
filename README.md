@@ -4,7 +4,7 @@ Private bookmark manager for storing URLs.
 
 ## Live URL
 
-- Vercel: `ADD_YOUR_VERCEL_URL_HERE`
+- Vercel: `https://smart-bookmark-app-chi-two.vercel.app/`
 
 ## Features
 
