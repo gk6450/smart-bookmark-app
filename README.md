@@ -4,7 +4,7 @@ Private bookmark manager for storing URLs.
 
 ## Live URL
 
-- Vercel: `https://smart-bookmark-app-chi-two.vercel.app`
+- Vercel: [https://smart-bookmark-app-chi-two.vercel.app](https://smart-bookmark-app-chi-two.vercel.app)
 
 ## Features
 
@@ -132,19 +132,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 ## Problems Faced and Solutions
 
-1. **Google Cloud permissions/project access blocked OAuth setup**
-   - **Problem:** `You need additional access to the project ...` in Google Cloud Console.
-   - **Solution:** Switched to a project where IAM permissions were available (or requested admin role), then created OAuth credentials there.
-
-2. **OAuth client creation blocked by missing consent screen**
+1. **OAuth client creation blocked by missing consent screen**
    - **Problem:** Google requires consent screen before creating OAuth Client ID.
    - **Solution:** Configured consent screen first (External app in testing mode, added test users), then created OAuth credentials.
 
-3. **Wrong env file caused runtime auth failures**
-   - **Problem:** App showed missing Supabase env variables while values were in `.env.example`.
-   - **Solution:** Moved runtime values to `.env.local` and restarted dev server.
+2. **Supabase and Google OAuth redirect setup mismatch**
+   - **Problem:** OAuth login failed when Supabase callback/site URLs and Google Cloud OAuth redirect settings did not exactly match between local and Vercel environments.
+   - **Solution:** Used Supabase callback URL as the only Google OAuth redirect URI, set Supabase Site URL/Redirect URLs for both local and production callback routes, and verified environment-specific domains in both dashboards.
 
-4. **Realtime channel subscribed without auth token in some sessions**
+3. **Realtime channel subscribed without auth token in some sessions**
    - **Problem:** Cross-tab updates did not appear until refresh.
    - **Solution:** Set realtime auth token from current session before channel subscription and handled insert/update/delete events.
 

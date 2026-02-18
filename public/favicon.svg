@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Smart Bookmark App favicon">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <linearGradient id="bookmark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+  </defs>
+
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)" />
+  <path
+    d="M22 16a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v32l-10-7-10 7V16z"
+    fill="url(#bookmark)"
+    stroke="#a5f3fc"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+  <circle cx="32" cy="24" r="3.5" fill="#e0f2fe" />
+</svg>
