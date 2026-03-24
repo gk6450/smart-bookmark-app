@@ -11,6 +11,8 @@ Private bookmark manager for storing URLs.
 - Google OAuth login/logout only (no email/password)
 - Private bookmarks per user with Supabase RLS
 - Create, update, and delete bookmarks (`title + url`)
+- Inline edit for existing bookmarks
+- Delete confirmation before destructive actions
 - Realtime sync across tabs (insert, update, delete)
 - Arctic Glass UI (icons, subtle motion, skeleton states, empty/error states)
 
@@ -23,6 +25,8 @@ Private bookmark manager for storing URLs.
 - `zod` for validation
 - `motion` + `lucide-react` + `sonner`
 - Vitest (tests under `tests/`)
+
+This project uses the Next.js App Router, not the legacy Pages Router. All route segments, layouts, and route handlers live under `src/app`.
 
 ## Architecture
 
@@ -88,6 +92,34 @@ tests/
 3. Create/update/delete calls server actions.
 4. UI applies optimistic state; server action response and realtime events converge via upsert-by-id.
 
+## Supabase Auth And RLS
+
+Google OAuth is configured through Supabase Auth. The app starts sign-in from a server action, Supabase handles the Google exchange, and the app callback at `/auth/callback` exchanges the returned code for a session before redirecting the user back to `/bookmarks`.
+
+RLS is enforced in SQL, not just in the UI. The policies in `supabase/policies.sql` are:
+
+- `SELECT`: `auth.uid() = user_id`
+- `INSERT`: `with check (auth.uid() = user_id)`
+- `UPDATE`: `using (auth.uid() = user_id)` and `with check (auth.uid() = user_id)`
+- `DELETE`: `using (auth.uid() = user_id)`
+
+These are correct because every read or mutation is scoped to the authenticated user's `user_id`. Even if someone bypassed the frontend, Supabase would still reject access to bookmarks owned by another user.
+
+## Realtime Sync
+
+Realtime sync is implemented with Supabase Realtime `postgres_changes` subscriptions in `src/features/bookmarks/hooks/use-bookmark-realtime.ts`.
+
+- The client subscribes to `INSERT`, `UPDATE`, and `DELETE` events on `public.bookmarks`
+- Each subscription is filtered with `user_id=eq.<current-user-id>` so only the signed-in user's records are streamed
+- The current session access token is passed to `supabase.realtime.setAuth(...)` before subscribing so the channel is authorized correctly
+- Cleanup is handled in the `useEffect` teardown by calling `supabase.removeChannel(channel)` to avoid leaked subscriptions when the component unmounts or the user changes
+
+## Bonus Feature
+
+The bonus feature is inline bookmark editing.
+
+I chose this because bookmark managers often need quick correction after save, especially when the title needs cleanup or the URL should be normalized. Inline editing keeps the user in context and is more useful than forcing a delete-and-recreate flow.
+
 ## Database Setup (Supabase Cloud)
 
 Run in SQL Editor, in order:
@@ -112,7 +144,13 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-On Vercel, prefer deriving the callback host from the incoming request when you use both the stable production domain and preview aliases. A fixed `NEXT_PUBLIC_SITE_URL` can pin OAuth callbacks to only one hostname.
+For local development, `NEXT_PUBLIC_SITE_URL` should be `http://localhost:3000`.
+
+For production, use:
+
+```env
+NEXT_PUBLIC_SITE_URL=https://smart-bookmark-app-chi-two.vercel.app
+```
 
 ## Google OAuth Setup
 
@@ -122,16 +160,17 @@ On Vercel, prefer deriving the callback host from the incoming request when you 
 3. Create OAuth Client ID (Web application):
    - Authorized JavaScript origins:
      - `http://localhost:3000`
-     - `https://<your-vercel-domain>`
+     - `https://smart-bookmark-app-chi-two.vercel.app`
    - Authorized redirect URI:
      - Supabase callback URL from step 1
 4. Copy Google Client ID/Secret into Supabase Google provider and enable.
 5. In Supabase `Authentication -> URL Configuration` set:
-   - Site URL: `http://localhost:3000`
+   - Site URL:
+     - `http://localhost:3000` for local development
+     - `https://smart-bookmark-app-chi-two.vercel.app` for production
    - Redirect URLs:
-     - `http://localhost:3000/auth/callback`
-     - `https://<your-vercel-domain>/auth/callback`
-     - `https://<your-preview-or-alias-domain>/auth/callback` if you also sign in from that hostname
+      - `http://localhost:3000/auth/callback`
+      - `https://smart-bookmark-app-chi-two.vercel.app/auth/callback`
 
 ## Problems Faced and Solutions
 
@@ -146,6 +185,14 @@ On Vercel, prefer deriving the callback host from the incoming request when you 
 3. **Realtime channel subscribed without auth token in some sessions**
    - **Problem:** Cross-tab updates did not appear until refresh.
    - **Solution:** Set realtime auth token from current session before channel subscription and handled insert/update/delete events.
+
+4. **Paused Supabase project caused upstream request timeouts**
+   - **Problem:** When the Supabase project was paused, auth requests from middleware could hang long enough for Vercel to return a `504 MIDDLEWARE_INVOCATION_TIMEOUT`.
+   - **Solution:** Added timeout-aware server-side Supabase requests and graceful fallbacks so the app degrades to a recoverable login or error state instead of hanging.
+
+## If I Had More Time
+
+I would add tags plus quick filtering/search. That would make the app feel more like a real daily-use bookmark manager without changing the core authentication and privacy model.
 
 ## Local Development
 
@@ -168,7 +215,7 @@ npm run dev
 - Login with Google and land on `/bookmarks`
 - Add bookmark and verify it appears immediately
 - Update bookmark title/url and verify changes persist
-- Delete bookmark and verify it disappears
+- Delete bookmark, confirm the destructive action, and verify it disappears
 - Open second tab with same account and verify realtime insert/update/delete
 - Verify user B cannot view or mutate user A bookmarks
 - Run lint/typecheck/build before submission

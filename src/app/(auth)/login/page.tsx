@@ -2,7 +2,9 @@ import { Chrome } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { getUserSafely } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { AUTH_SERVICE_UNAVAILABLE_MESSAGE } from "@/lib/supabase/shared";
 import { signInWithGoogleAction } from "@/features/auth/actions";
 
 type LoginPageProps = {
@@ -14,14 +16,17 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, unavailable } = await getUserSafely(supabase);
 
   if (user) {
     redirect("/bookmarks");
   }
+
+  const errorMessage = params.error
+    ? decodeURIComponent(params.error)
+    : unavailable
+      ? AUTH_SERVICE_UNAVAILABLE_MESSAGE
+      : null;
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-8">
@@ -33,9 +38,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <p className="text-sm text-slate-300">Sign in with Google to manage your private bookmarks.</p>
         </header>
 
-        {params.error ? (
+        {errorMessage ? (
           <div className="rounded-xl border border-rose-300/40 bg-rose-300/12 px-3 py-2 text-sm text-rose-100">
-            {decodeURIComponent(params.error)}
+            {errorMessage}
           </div>
         ) : null}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Check, Clock3, ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, Clock3, ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import type { BookmarkInput } from "@/features/bookmarks/schemas";
@@ -29,11 +29,13 @@ export function BookmarkCard({
   onDelete,
 }: BookmarkCardProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [title, setTitle] = useState(bookmark.title);
   const [url, setUrl] = useState(bookmark.url);
   const [errors, setErrors] = useState<{ title?: string; url?: string }>({});
 
   function startEditing() {
+    setIsConfirmingDelete(false);
     setTitle(bookmark.title);
     setUrl(bookmark.url);
     setErrors({});
@@ -43,6 +45,16 @@ export function BookmarkCard({
   function cancelEditing() {
     setIsEditing(false);
     setErrors({});
+  }
+
+  function startDeleteConfirmation() {
+    setIsEditing(false);
+    setErrors({});
+    setIsConfirmingDelete(true);
+  }
+
+  function cancelDeleteConfirmation() {
+    setIsConfirmingDelete(false);
   }
 
   async function saveEdit() {
@@ -66,6 +78,11 @@ export function BookmarkCard({
       setIsEditing(false);
       setErrors({});
     }
+  }
+
+  async function confirmDelete() {
+    setIsConfirmingDelete(false);
+    await onDelete(bookmark.id);
   }
 
   return (
@@ -153,19 +170,62 @@ export function BookmarkCard({
               <Pencil className="h-4 w-4" />
             </Button>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={isEditing || isDeleting || isUpdating || isOptimistic}
-            aria-label={`Delete ${bookmark.title}`}
-            onClick={() => onDelete(bookmark.id)}
-            className="text-rose-100 hover:bg-rose-300/20"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {isConfirmingDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isDeleting}
+              aria-label={`Cancel deleting ${bookmark.title}`}
+              onClick={cancelDeleteConfirmation}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isEditing || isDeleting || isUpdating || isOptimistic}
+              aria-label={`Delete ${bookmark.title}`}
+              onClick={startDeleteConfirmation}
+              className="text-rose-100 hover:bg-rose-300/20"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
+
+      {isConfirmingDelete ? (
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-rose-300/35 bg-rose-300/10 p-3 text-sm text-rose-100 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>Delete this bookmark? This action cannot be undone.</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={isDeleting}
+              onClick={cancelDeleteConfirmation}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              disabled={isDeleting}
+              onClick={confirmDelete}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4 flex items-center justify-between text-xs text-slate-300">
         <span>{new Date(bookmark.created_at).toLocaleString()}</span>

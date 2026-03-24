@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
+import { getUserSafely } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import {
+  AUTH_SERVICE_UNAVAILABLE_MESSAGE,
+  BOOKMARKS_SERVICE_UNAVAILABLE_MESSAGE,
+} from "@/lib/supabase/shared";
 import type { Bookmark } from "@/types/bookmark";
 
 import { mapBookmarkActionError } from "./mappers";
@@ -41,38 +46,46 @@ export async function createBookmarkAction(input: BookmarkInput): Promise<Create
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const { user, unavailable } = await getUserSafely(supabase);
 
-  if (userError || !user) {
+  if (unavailable) {
+    return { ok: false, error: AUTH_SERVICE_UNAVAILABLE_MESSAGE };
+  }
+
+  if (!user) {
     return { ok: false, error: "You need to be logged in." };
   }
 
-  const { data, error } = await supabase
-    .from("bookmarks")
-    .insert({
-      user_id: user.id,
-      title: parsedInput.data.title,
-      url: parsedInput.data.url,
-    })
-    .select("id,user_id,title,url,created_at")
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("bookmarks")
+      .insert({
+        user_id: user.id,
+        title: parsedInput.data.title,
+        url: parsedInput.data.url,
+      })
+      .select("id,user_id,title,url,created_at")
+      .single();
 
-  if (error || !data) {
+    if (error || !data) {
+      return {
+        ok: false,
+        error: mapBookmarkActionError(error),
+      };
+    }
+
+    revalidatePath("/bookmarks");
+
+    return {
+      ok: true,
+      bookmark: data,
+    };
+  } catch {
     return {
       ok: false,
-      error: mapBookmarkActionError(error),
+      error: BOOKMARKS_SERVICE_UNAVAILABLE_MESSAGE,
     };
   }
-
-  revalidatePath("/bookmarks");
-
-  return {
-    ok: true,
-    bookmark: data,
-  };
 }
 
 export async function deleteBookmarkAction(id: string): Promise<DeleteBookmarkResult> {
@@ -81,31 +94,41 @@ export async function deleteBookmarkAction(id: string): Promise<DeleteBookmarkRe
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const { user, unavailable } = await getUserSafely(supabase);
 
-  if (userError || !user) {
+  if (unavailable) {
+    return { ok: false, error: AUTH_SERVICE_UNAVAILABLE_MESSAGE };
+  }
+
+  if (!user) {
     return { ok: false, error: "You need to be logged in." };
   }
 
-  const { error } = await supabase
-    .from("bookmarks")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+  try {
+    const { error } = await supabase
+      .from("bookmarks")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
 
-  if (error) {
+    if (error) {
+      return {
+        ok: false,
+        error: mapBookmarkActionError(error),
+      };
+    }
+
+    revalidatePath("/bookmarks");
+
+    return {
+      ok: true,
+    };
+  } catch {
     return {
       ok: false,
-      error: mapBookmarkActionError(error),
+      error: BOOKMARKS_SERVICE_UNAVAILABLE_MESSAGE,
     };
   }
-
-  revalidatePath("/bookmarks");
-
-  return { ok: true };
 }
 
 export async function updateBookmarkAction(
@@ -125,37 +148,45 @@ export async function updateBookmarkAction(
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const { user, unavailable } = await getUserSafely(supabase);
 
-  if (userError || !user) {
+  if (unavailable) {
+    return { ok: false, error: AUTH_SERVICE_UNAVAILABLE_MESSAGE };
+  }
+
+  if (!user) {
     return { ok: false, error: "You need to be logged in." };
   }
 
-  const { data, error } = await supabase
-    .from("bookmarks")
-    .update({
-      title: parsedInput.data.title,
-      url: parsedInput.data.url,
-    })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id,user_id,title,url,created_at")
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("bookmarks")
+      .update({
+        title: parsedInput.data.title,
+        url: parsedInput.data.url,
+      })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("id,user_id,title,url,created_at")
+      .single();
 
-  if (error || !data) {
+    if (error || !data) {
+      return {
+        ok: false,
+        error: mapBookmarkActionError(error),
+      };
+    }
+
+    revalidatePath("/bookmarks");
+
+    return {
+      ok: true,
+      bookmark: data,
+    };
+  } catch {
     return {
       ok: false,
-      error: mapBookmarkActionError(error),
+      error: BOOKMARKS_SERVICE_UNAVAILABLE_MESSAGE,
     };
   }
-
-  revalidatePath("/bookmarks");
-
-  return {
-    ok: true,
-    bookmark: data,
-  };
 }
