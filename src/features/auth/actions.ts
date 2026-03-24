@@ -5,21 +5,25 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
+function removeTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
 function getBaseUrl(headerStore: Headers): string {
   const forwardedHost = headerStore.get("x-forwarded-host");
   const forwardedProto = headerStore.get("x-forwarded-proto") ?? "https";
   const origin = headerStore.get("origin");
 
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-
   if (forwardedHost) {
-    return `${forwardedProto}://${forwardedHost}`;
+    return removeTrailingSlash(`${forwardedProto}://${forwardedHost}`);
   }
 
   if (origin) {
-    return origin;
+    return removeTrailingSlash(origin);
+  }
+
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return removeTrailingSlash(process.env.NEXT_PUBLIC_SITE_URL);
   }
 
   return "http://localhost:3000";

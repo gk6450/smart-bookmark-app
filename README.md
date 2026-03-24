@@ -112,6 +112,8 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
+On Vercel, prefer deriving the callback host from the incoming request when you use both the stable production domain and preview aliases. A fixed `NEXT_PUBLIC_SITE_URL` can pin OAuth callbacks to only one hostname.
+
 ## Google OAuth Setup
 
 1. In Supabase: `Authentication -> Providers -> Google` and copy Supabase callback URL:
@@ -129,6 +131,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    - Redirect URLs:
      - `http://localhost:3000/auth/callback`
      - `https://<your-vercel-domain>/auth/callback`
+     - `https://<your-preview-or-alias-domain>/auth/callback` if you also sign in from that hostname
 
 ## Problems Faced and Solutions
 
